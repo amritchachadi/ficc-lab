@@ -28,9 +28,7 @@ _D = date
     ],
 )
 def test_thirty_360_us_known_values(start: date, end: date, expected_days: int) -> None:
-    assert year_fraction(start, end, DayCount.THIRTY_360_US) == pytest.approx(
-        expected_days / 360.0
-    )
+    assert year_fraction(start, end, DayCount.THIRTY_360_US) == pytest.approx(expected_days / 360.0)
 
 
 @pytest.mark.parametrize(
@@ -45,9 +43,7 @@ def test_thirty_360_us_known_values(start: date, end: date, expected_days: int) 
     ],
 )
 def test_thirty_e_360_known_values(start: date, end: date, expected_days: int) -> None:
-    assert year_fraction(start, end, DayCount.THIRTY_E_360) == pytest.approx(
-        expected_days / 360.0
-    )
+    assert year_fraction(start, end, DayCount.THIRTY_E_360) == pytest.approx(expected_days / 360.0)
 
 
 def test_thirty_e_360_isda_rolls_a_short_february_to_thirty() -> None:

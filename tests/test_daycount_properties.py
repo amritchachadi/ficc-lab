@@ -36,18 +36,22 @@ def test_a_degenerate_period_is_zero(d: date, convention: DayCount) -> None:
 
 
 @given(start=_DATES, end=_DATES, convention=st.sampled_from(_SIMPLE))
-def test_year_fractions_are_never_negative(
-    start: date, end: date, convention: DayCount
-) -> None:
+def test_year_fractions_are_never_negative(start: date, end: date, convention: DayCount) -> None:
     assume(start <= end)
     assert year_fraction(start, end, convention) >= 0.0
 
 
-@given(start=_DATES, mid=_DATES, end=_DATES, convention=st.sampled_from(_ADDITIVE))
+@given(triple=st.tuples(_DATES, _DATES, _DATES), convention=st.sampled_from(_ADDITIVE))
 def test_additive_conventions_split_exactly(
-    start: date, mid: date, end: date, convention: DayCount
+    triple: tuple[date, date, date], convention: DayCount
 ) -> None:
-    assume(start <= mid <= end)
+    """Sort rather than filter, so every generated case is used.
+
+    Assuming an ordering on three independent dates discards five cases in
+    six, which trips Hypothesis's filter_too_much health check and thins the
+    effective sample.
+    """
+    start, mid, end = sorted(triple)
     whole = year_fraction(start, end, convention)
     parts = year_fraction(start, mid, convention) + year_fraction(mid, end, convention)
     assert parts == pytest.approx(whole, rel=1e-12, abs=1e-12)

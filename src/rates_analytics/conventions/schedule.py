@@ -10,12 +10,12 @@ from __future__ import annotations
 import calendar
 from collections.abc import Iterable
 from datetime import date, timedelta
-from enum import Enum
+from enum import Enum, StrEnum
 
 _SATURDAY = 5
 
 
-class BusinessDayConvention(str, Enum):
+class BusinessDayConvention(StrEnum):
     """How to move a date that falls on a non-business day."""
 
     UNADJUSTED = "Unadjusted"
@@ -34,7 +34,7 @@ class Frequency(int, Enum):
     MONTHLY = 12
 
 
-class Generation(str, Enum):
+class Generation(StrEnum):
     """Which end of the schedule the regular periods are measured from.
 
     ``BACKWARD`` rolls from maturity, leaving any stub at the front, which

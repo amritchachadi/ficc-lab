@@ -1,16 +1,17 @@
 # rates-analytics
 
-[![ci](https://github.com/USERNAME/rates-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/USERNAME/rates-analytics/actions/workflows/ci.yml)
+[![ci](https://github.com/amritchachadi/ficc-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/amritchachadi/ficc-lab/actions/workflows/ci.yml)
 
 Fixed-income analytics with explicit, tested convention handling: day counts and
 schedule generation today, curve construction and bond pricing next.
 
-The premise is that most fixed-income pricing errors in production are not
-model errors. They are convention errors — the wrong day count on the floating
-leg of a fixed-to-float bond, a month-end roll that drifts, a floating-rate note
-whose duration is computed as though its coupon were fixed. This library treats
-those cases as the primary subject rather than as edge cases bolted on after a
-happy path works.
+The premise is that most fixed-income pricing errors are not model errors. They
+are convention errors, and the same handful recur throughout the literature and
+vendor documentation: the wrong day count on the floating leg of a fixed-to-float
+bond, a month-end roll that drifts, a floating-rate note whose duration is
+computed as though its coupon were fixed. This library treats those known
+pitfalls as the primary subject rather than as edge cases bolted on after a happy
+path works.
 
 ## Status
 
@@ -69,12 +70,16 @@ Tests are offline and deterministic. No test reaches the network.
 from datetime import date
 
 from rates_analytics.conventions import (
-    BusinessDayConvention, Calendar, DayCount, Frequency,
-    generate_schedule, year_fraction,
+    BusinessDayConvention,
+    Calendar,
+    DayCount,
+    Frequency,
+    generate_schedule,
+    year_fraction,
 )
 
 # A 29 February boundary: 30E/360 and 30E/360 ISDA differ by one day.
-year_fraction(date(2007, 8, 31), date(2008, 2, 29), DayCount.THIRTY_E_360)       # 179/360
+year_fraction(date(2007, 8, 31), date(2008, 2, 29), DayCount.THIRTY_E_360)  # 179/360
 year_fraction(date(2007, 8, 31), date(2008, 2, 29), DayCount.THIRTY_E_360_ISDA)  # 180/360
 
 # A semiannual schedule with a short front stub, adjusted for weekends.

@@ -48,9 +48,7 @@ def test_act_365_fixed_matches_quantlib(start: date, end: date) -> None:
 def test_act_act_isda_matches_quantlib(start: date, end: date) -> None:
     assume(start <= end)
     expected = ql.ActualActual(ql.ActualActual.ISDA).yearFraction(_to_ql(start), _to_ql(end))
-    assert year_fraction(start, end, DayCount.ACT_ACT_ISDA) == pytest.approx(
-        expected, abs=_TOL
-    )
+    assert year_fraction(start, end, DayCount.ACT_ACT_ISDA) == pytest.approx(expected, abs=_TOL)
 
 
 @given(start=_DATES, end=_DATES)
@@ -58,9 +56,7 @@ def test_thirty_e_360_matches_quantlib_eurobond_basis(start: date, end: date) ->
     assume(start <= end)
     counter = ql.Thirty360(ql.Thirty360.EurobondBasis)
     expected = counter.yearFraction(_to_ql(start), _to_ql(end))
-    assert year_fraction(start, end, DayCount.THIRTY_E_360) == pytest.approx(
-        expected, abs=_TOL
-    )
+    assert year_fraction(start, end, DayCount.THIRTY_E_360) == pytest.approx(expected, abs=_TOL)
 
 
 @given(start=_DATES, end=_DATES)

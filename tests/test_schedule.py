@@ -1,6 +1,7 @@
 """Tests for schedule generation, month arithmetic and business day adjustment."""
 
 from datetime import date, timedelta
+from itertools import pairwise
 
 import pytest
 from hypothesis import assume, given
@@ -77,9 +78,7 @@ def test_modified_following_does_not_cross_into_the_next_month() -> None:
     """31 May 2020 is a Sunday: Following rolls into June, Modified must not."""
     cal = Calendar()
     assert cal.adjust(_D(2020, 5, 31), BusinessDayConvention.FOLLOWING) == _D(2020, 6, 1)
-    assert cal.adjust(_D(2020, 5, 31), BusinessDayConvention.MODIFIED_FOLLOWING) == _D(
-        2020, 5, 29
-    )
+    assert cal.adjust(_D(2020, 5, 31), BusinessDayConvention.MODIFIED_FOLLOWING) == _D(2020, 5, 29)
 
 
 def test_holidays_are_respected() -> None:
@@ -134,7 +133,7 @@ def test_schedules_are_strictly_increasing(
         generation=generation,
     )
     assert len(dates) >= 2
-    assert all(b > a for a, b in zip(dates, dates[1:], strict=True))
+    assert all(b > a for a, b in pairwise(dates))
 
 
 @given(
@@ -175,8 +174,5 @@ def test_accruals_over_a_schedule_tile_the_whole_life(
     end = start + timedelta(days=tenor_days)
     assume(end.year <= 2070)
     dates = generate_schedule(start, end, frequency)
-    total = sum(
-        year_fraction(a, b, DayCount.ACT_360)
-        for a, b in zip(dates, dates[1:], strict=True)
-    )
+    total = sum(year_fraction(a, b, DayCount.ACT_360) for a, b in pairwise(dates))
     assert total == pytest.approx(year_fraction(dates[0], dates[-1], DayCount.ACT_360))

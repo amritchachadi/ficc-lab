@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import calendar
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 
 
-class DayCount(str, Enum):
+class DayCount(StrEnum):
     """Supported day count conventions."""
 
     THIRTY_360_US = "30/360 US"
@@ -87,10 +87,8 @@ def _thirty_e_360_isda(start: date, end: date, *, is_termination: bool) -> int:
     exempt when it is the termination date falling in February.
     """
     d1 = 30 if _is_last_day_of_month(start) else start.day
-    if _is_last_day_of_month(end) and not (end.month == 2 and is_termination):
-        d2 = 30
-    else:
-        d2 = end.day
+    exempt = end.month == 2 and is_termination
+    d2 = 30 if _is_last_day_of_month(end) and not exempt else end.day
     return 360 * (end.year - start.year) + 30 * (end.month - start.month) + (d2 - d1)
 
 
@@ -104,9 +102,7 @@ def _act_act_isda(start: date, end: date) -> float:
     if start.year == end.year:
         return (end - start).days / (366.0 if _is_leap(start.year) else 365.0)
 
-    head = (date(start.year + 1, 1, 1) - start).days / (
-        366.0 if _is_leap(start.year) else 365.0
-    )
+    head = (date(start.year + 1, 1, 1) - start).days / (366.0 if _is_leap(start.year) else 365.0)
     tail = (end - date(end.year, 1, 1)).days / (366.0 if _is_leap(end.year) else 365.0)
     whole_years = end.year - start.year - 1
     return head + whole_years + tail
