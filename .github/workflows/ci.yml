@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   check:
@@ -17,20 +18,22 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
 
       - name: Sync dependencies
         run: uv sync --all-extras --dev --python ${{ matrix.python-version }}
 
       - name: Lint
+        if: success() || failure()
         run: uv run ruff check .
 
       - name: Format check
+        if: success() || failure()
         run: uv run ruff format --check .
 
       - name: Type check
+        if: success() || failure()
         run: uv run mypy
 
       - name: Test
+        if: success() || failure()
         run: uv run pytest
