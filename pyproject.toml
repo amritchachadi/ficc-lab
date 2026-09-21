@@ -45,7 +45,9 @@ ignore = ["D203", "D213", "ANN401"]
 convention = "numpy"
 
 [tool.mypy]
-python_version = "3.11"
+# No python_version pin: each matrix job type-checks against its own
+# interpreter. Pinning it makes mypy reject valid newer syntax in the
+# installed third-party stubs.
 strict = true
 files = ["src", "tests"]
 
