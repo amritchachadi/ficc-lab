@@ -1,0 +1,23 @@
+# Strategy config consumed by scripts/backtest.py.
+#
+# The synthetic panel embeds a persistent drift dispersion across assets
+# (drift_spread), so cross-sectional momentum has genuine structure to find.
+# Set drift_spread to 0.0 for the null panel: the same strategy then has
+# approximately zero expected return, which is the honest baseline every
+# signal should be compared against.
+signal:
+  name: momentum
+  lookback: 126
+
+data:
+  source: synthetic
+  n_assets: 4
+  n_days: 1000
+  seed: 14
+  annual_drift: 0.05
+  annual_vol: 0.20
+  drift_spread: 0.30
+
+backtest:
+  cost_bps: 5.0
+  initial_capital: 100000

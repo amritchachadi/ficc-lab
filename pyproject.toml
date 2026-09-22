@@ -7,6 +7,9 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
+    "PyYAML>=6.0",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +24,7 @@ dev = [
     "mypy>=1.10",
     "ruff>=0.5",
     "QuantLib>=1.34",
+    "pandas-stubs>=3.0.5.260914",
 ]
 
 [build-system]
@@ -53,6 +57,14 @@ files = ["src", "tests"]
 
 [[tool.mypy.overrides]]
 module = "QuantLib.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "yaml.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "yfinance.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

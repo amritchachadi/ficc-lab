@@ -103,6 +103,50 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pyt
 
 CI runs exactly that on 3.11 and 3.12.
 
+## Research tooling (OpenRouter)
+
+The repo carries a thin LLM layer routed through
+[OpenRouter](https://openrouter.ai): one API key, three model slots
+(`research`, `code`, `fast`) assigned via environment variables, so models
+can be swapped without touching call sites. The slots back three tools:
+
+- **`scripts/research_assistant.py`** — turns a one-line strategy idea into a
+  structured strategy note (hypothesis, data needs, risks, backtest plan,
+  metrics) and optionally sketches a code scaffold shaped like this repo:
+
+  ```bash
+  cp .env.example .env  # add your key from https://openrouter.ai/keys
+  uv run python scripts/research_assistant.py \
+      --idea "momentum in G10 FX with vol targeting" \
+      --with-code --out docs/strategy_notes/fx_momentum.md
+  ```
+
+- **`scripts/backtest.py`** — runs a YAML-configured backtest
+  (`configs/momentum.yaml`) against the deterministic synthetic panel, so
+  CI can gate strategies with no network or data subscription:
+
+  ```bash
+  uv run python scripts/backtest.py --config configs/momentum.yaml \
+      --out reports/backtest.json
+  ```
+
+- **`scripts/llm_pr_review.py`** — the code model reviews every PR diff and
+  posts its findings as a PR comment. The prompt encodes this repo's own
+  failure modes: convention errors, look-ahead bias in backtests, ignored
+  transaction costs.
+
+The backtest stack behind those scripts lives in `src/rates_analytics/`
+(`data`, `signals`, `backtest`, `metrics`): vectorized engine, dollar-neutral
+cross-sectional momentum, Sharpe/drawdown/vol metrics, and a synthetic panel
+generator that can embed real drift structure or produce pure noise — the
+null case every signal should be measured against.
+
+CI wires this into three workflows: `ci` (lint, types, tests), `backtest`
+(a PR gate that runs the config and checks guard rails, uploading the report
+as an artifact), and `llm-review` (the PR reviewer above). Set
+`OPENROUTER_API_KEY` as a repository secret for the LLM workflows; the rest
+never need a key.
+
 ## Limitations
 
 - **Scope.** Conventions only so far. No curves, no pricing, no risk yet.

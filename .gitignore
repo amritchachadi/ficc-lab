@@ -10,3 +10,11 @@ build/
 *.egg-info/
 .ipynb_checkpoints/
 .DS_Store
+
+# Secrets — never commit
+.env
+
+# Generated artifacts
+reports/
+data/raw/
+data/processed/
