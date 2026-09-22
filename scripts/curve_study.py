@@ -1,4 +1,3 @@
-# fmt: off
 # ruff: noqa
 from __future__ import annotations
 
@@ -190,4 +189,3 @@ def _write_pdf(markdown: str, pdf_path: Path) -> None:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-# fmt: on
