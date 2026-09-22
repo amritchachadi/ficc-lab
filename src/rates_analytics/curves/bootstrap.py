@@ -1,14 +1,12 @@
-# fmt: off
-# ruff: noqa
 """Curve bootstrapping and interpolation comparison utilities."""
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from math import exp, log
 from statistics import fmean
-from typing import Iterable
 
 
 class InterpolationMethod(StrEnum):
@@ -284,4 +282,3 @@ def _accruals(payment_dates: list[float]) -> list[float]:
         out.append(payment - prev)
         prev = payment
     return out
-# fmt: on
