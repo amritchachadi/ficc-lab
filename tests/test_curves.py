@@ -1,5 +1,3 @@
-# fmt: off
-# ruff: noqa
 from rates_analytics.curves import InterpolationMethod, bootstrap_curve, demo_curve_quotes, projection_vs_discount_report
 
 
@@ -15,4 +13,3 @@ def test_dual_curve_basis_is_nonzero() -> None:
     projection_curve = bootstrap_curve(projection, InterpolationMethod.LOG_DISCOUNT).curve
     report = projection_vs_discount_report(discount_curve, projection_curve)
     assert report["pv_basis"] != 0.0
-# fmt: on
