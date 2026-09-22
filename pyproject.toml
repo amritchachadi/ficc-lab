@@ -10,6 +10,8 @@ dependencies = [
     "PyYAML>=6.0",
     "python-dotenv>=1.0",
     "requests>=2.31",
+    "matplotlib>=3.8",
+    "reportlab>=4.0",
 ]
 
 [project.optional-dependencies]
