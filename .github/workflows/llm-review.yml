@@ -19,6 +19,9 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run AI review
+        # Non-blocking: the review is advisory, and it also fails cleanly
+        # while the OpenRouter account has no credits.
+        continue-on-error: true
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
