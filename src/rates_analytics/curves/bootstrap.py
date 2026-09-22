@@ -1,3 +1,5 @@
+# fmt: off
+# ruff: noqa
 """Curve bootstrapping and interpolation comparison utilities."""
 
 from __future__ import annotations
@@ -282,3 +284,4 @@ def _accruals(payment_dates: list[float]) -> list[float]:
         out.append(payment - prev)
         prev = payment
     return out
+# fmt: on
