@@ -140,7 +140,7 @@ def year_fraction(
         reference period length times frequency, so a full reference
         period always returns exactly 1/frequency regardless of its
         actual length.
-        
+
     Returns
     -------
     float
