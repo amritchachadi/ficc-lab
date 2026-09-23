@@ -136,8 +136,11 @@ def year_fraction(
     ref_period_start, ref_period_end, frequency
         The enclosing coupon period and coupon frequency in payments per
         year. Required by :attr:`DayCount.ACT_ACT_ICMA` and ignored
-        otherwise.
-
+        otherwise. The year fraction is the accrual days divided by the
+        reference period length times frequency, so a full reference
+        period always returns exactly 1/frequency regardless of its
+        actual length.
+        
     Returns
     -------
     float
