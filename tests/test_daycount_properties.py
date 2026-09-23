@@ -98,6 +98,21 @@ def test_act_act_icma_on_a_full_period_is_exactly_one_over_frequency(
     assert value == pytest.approx(1.0 / frequency, rel=1e-12)
 
 
+
+_dates = st.dates(min_value=date(1990, 1, 1), max_value=date(2070, 12, 31))
+
+
+@given(triple=st.tuples(_dates, _dates, _dates))
+def test_additive_convention_act_360(triple: tuple[date, date, date]) -> None:
+    start, mid, end = sorted(triple)
+    assume(start < mid < end)
+
+    whole = year_fraction(start, end, DayCount.ACT_360)
+    parts = year_fraction(start, mid, DayCount.ACT_360) + year_fraction(mid, end, DayCount.ACT_360)
+
+    assert parts == pytest.approx(whole, rel=1e-12, abs=1e-12)
+    
+
 @given(start=_DATES, end=_DATES)
 def test_thirty_e_360_isda_tracks_plain_thirty_e_360_within_two_days(
     start: date, end: date
