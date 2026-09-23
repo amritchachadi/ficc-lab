@@ -187,7 +187,8 @@ class OpenRouterClient:
         try:
             content = body["choices"][0]["message"]["content"]
             model = body.get("model", requested_model)
-            usage = {k: int(v) for k, v in dict(body.get("usage", {})).items()}
+            raw_usage = dict(body.get("usage", {}))
+            usage = {k: int(v) for k, v in raw_usage.items() if isinstance(v, (int, float))}
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             msg = f"Malformed OpenRouter response: {exc}"
             raise OpenRouterError(msg) from exc
