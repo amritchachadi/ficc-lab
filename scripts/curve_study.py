@@ -15,7 +15,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from rates_analytics.config import Settings
-from rates_analytics.curves import InterpolationMethod, bootstrap_curve, demo_curve_quotes, projection_vs_discount_report
+from rates_analytics.curves import (
+    InterpolationMethod,
+    bootstrap_curve,
+    demo_curve_quotes,
+    projection_vs_discount_report,
+)
 from rates_analytics.llm.router import OpenRouterClient
 
 INTERPOLATIONS = (
@@ -79,7 +84,10 @@ def _build_writeup(studies: dict[InterpolationMethod, tuple[object, object]]) ->
             )
         )
         forward_profile = discount_curve.dense_forward_profile()
-        forward_changes = [abs(forward_profile[i][1] - forward_profile[i - 1][1]) for i in range(1, len(forward_profile))]
+        forward_changes = [
+            abs(forward_profile[i][1] - forward_profile[i - 1][1])
+            for i in range(1, len(forward_profile))
+        ]
         discount_notes.append(
             f"- {interpolation.value}: 5Y discount zero {discount_curve.zero_rate(5.0):.4%}, max helper error {discount_result.max_abs_error:.2e}, forward jump proxy {max(forward_changes):.4%}."
         )
@@ -87,26 +95,30 @@ def _build_writeup(studies: dict[InterpolationMethod, tuple[object, object]]) ->
             f"- {interpolation.value}: 5Y projection zero {projection_curve.zero_rate(5.0):.4%}, float-leg PV basis versus using the discount curve as projection {stats['pv_basis']:.6f}."
         )
 
-    lines.extend([
-        "## What the synthetic study shows",
-        "",
-        *discount_notes,
-        "",
-        *projection_notes,
-        "",
-        "## Headline takeaways",
-        "",
-        "1. The bootstrap reprices the helpers essentially exactly for all three interpolation schemes.",
-        "2. Interpolation changes the interior forward-rate path materially even when pillar zero rates stay close.",
-        "3. Using a single curve for both discounting and forwarding understates the dual-curve basis effect in the floating leg.",
-        "",
-        "## Comparison table",
-        "",
-        "| interpolation | discount max error | discount mean error | projection max error | float-leg PV basis | 5Y discount zero | 5Y projection zero |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
-    ])
+    lines.extend(
+        [
+            "## What the synthetic study shows",
+            "",
+            *discount_notes,
+            "",
+            *projection_notes,
+            "",
+            "## Headline takeaways",
+            "",
+            "1. The bootstrap reprices the helpers essentially exactly for all three interpolation schemes.",
+            "2. Interpolation changes the interior forward-rate path materially even when pillar zero rates stay close.",
+            "3. Using a single curve for both discounting and forwarding understates the dual-curve basis effect in the floating leg.",
+            "",
+            "## Comparison table",
+            "",
+            "| interpolation | discount max error | discount mean error | projection max error | float-leg PV basis | 5Y discount zero | 5Y projection zero |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
     for row in table_rows:
-        lines.append(f"| {row[0]} | {row[1]:.2e} | {row[2]:.2e} | {row[3]:.2e} | {row[4]:.6f} | {row[5]:.4%} | {row[6]:.4%} |")
+        lines.append(
+            f"| {row[0]} | {row[1]:.2e} | {row[2]:.2e} | {row[3]:.2e} | {row[4]:.6f} | {row[5]:.4%} | {row[6]:.4%} |"
+        )
 
     try:
         settings = Settings.from_env()
@@ -114,8 +126,14 @@ def _build_writeup(studies: dict[InterpolationMethod, tuple[object, object]]) ->
             client = OpenRouterClient(settings)
             synthesis = client.chat(
                 [
-                    {"role": "system", "content": "You are a senior fixed-income researcher. Summarize the implications of a dual-curve bootstrap and interpolation choice for a professional desk. Be concise and practical."},
-                    {"role": "user", "content": "Summarize the practical implications of a synthetic OIS discount and 3M projection curve comparison."},
+                    {
+                        "role": "system",
+                        "content": "You are a senior fixed-income researcher. Summarize the implications of a dual-curve bootstrap and interpolation choice for a professional desk. Be concise and practical.",
+                    },
+                    {
+                        "role": "user",
+                        "content": "Summarize the practical implications of a synthetic OIS discount and 3M projection curve comparison.",
+                    },
                 ],
                 task="research",
                 temperature=0.2,
@@ -125,19 +143,28 @@ def _build_writeup(studies: dict[InterpolationMethod, tuple[object, object]]) ->
         pass
 
     markdown = "\n".join(lines)
-    post = (
-        "I just built a synthetic dual-curve study in ficc-lab: OIS discounting, a separate 3M projection curve, and a comparison of linear-discount, linear-zero, and log-discount interpolation. The main takeaway is that helper repricing can look perfect while the forward curve between pillars still changes meaningfully, so interpolation choice is a real modelling assumption."
-    )
+    post = "I just built a synthetic dual-curve study in ficc-lab: OIS discounting, a separate 3M projection curve, and a comparison of linear-discount, linear-zero, and log-discount interpolation. The main takeaway is that helper repricing can look perfect while the forward curve between pillars still changes meaningfully, so interpolation choice is a real modelling assumption."
     return markdown, post
 
 
-def _plot_profiles(studies: dict[InterpolationMethod, tuple[object, object]], out_dir: Path) -> None:
+def _plot_profiles(
+    studies: dict[InterpolationMethod, tuple[object, object]], out_dir: Path
+) -> None:
     plt.figure(figsize=(10, 6))
     for interpolation, (discount_result, projection_result) in studies.items():
         discount_profile = discount_result.curve.dense_forward_profile()
-        plt.plot([p[0] for p in discount_profile], [p[1] for p in discount_profile], label=f"discount {interpolation.value}")
+        plt.plot(
+            [p[0] for p in discount_profile],
+            [p[1] for p in discount_profile],
+            label=f"discount {interpolation.value}",
+        )
     projection_profile = next(iter(studies.values()))[1].curve.dense_forward_profile()
-    plt.plot([p[0] for p in projection_profile], [p[1] for p in projection_profile], linestyle="--", label="projection curve")
+    plt.plot(
+        [p[0] for p in projection_profile],
+        [p[1] for p in projection_profile],
+        linestyle="--",
+        label="projection curve",
+    )
     plt.xlabel("Maturity (years)")
     plt.ylabel("3M-style forward rate")
     plt.title("Forward-rate paths under competing interpolation choices")
@@ -160,13 +187,22 @@ def _plot_profiles(studies: dict[InterpolationMethod, tuple[object, object]], ou
 
 
 def _write_pdf(markdown: str, pdf_path: Path) -> None:
-    doc = SimpleDocTemplate(str(pdf_path), pagesize=letter, rightMargin=54, leftMargin=54, topMargin=54, bottomMargin=54)
+    doc = SimpleDocTemplate(
+        str(pdf_path), pagesize=letter, rightMargin=54, leftMargin=54, topMargin=54, bottomMargin=54
+    )
     styles = getSampleStyleSheet()
     styles.add(ParagraphStyle(name="BodySmall", parent=styles["BodyText"], leading=12, fontSize=9))
     story = []
-    story.append(Paragraph("Curve bootstrapping, dual curve, and interpolation comparison", styles["Title"]))
+    story.append(
+        Paragraph("Curve bootstrapping, dual curve, and interpolation comparison", styles["Title"])
+    )
     story.append(Spacer(1, 0.2 * inch))
-    story.append(Paragraph("This report compares three interpolation schemes on a synthetic OIS discount curve and a separate 3M projection curve.", styles["BodyText"]))
+    story.append(
+        Paragraph(
+            "This report compares three interpolation schemes on a synthetic OIS discount curve and a separate 3M projection curve.",
+            styles["BodyText"],
+        )
+    )
     story.append(Spacer(1, 0.15 * inch))
     for image_name in ("forward_paths.png", "discount_factors.png"):
         story.append(Image(str(pdf_path.parent / image_name), width=6.8 * inch, height=4.1 * inch))

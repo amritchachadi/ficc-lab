@@ -1,4 +1,9 @@
-from rates_analytics.curves import InterpolationMethod, bootstrap_curve, demo_curve_quotes, projection_vs_discount_report
+from rates_analytics.curves import (
+    InterpolationMethod,
+    bootstrap_curve,
+    demo_curve_quotes,
+    projection_vs_discount_report,
+)
 
 
 def test_bootstrap_reprices_helpers() -> None:
