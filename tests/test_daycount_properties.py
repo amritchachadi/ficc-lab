@@ -121,3 +121,13 @@ def test_thirty_e_360_isda_tracks_plain_thirty_e_360_within_two_days(
     isda = year_fraction(start, end, DayCount.THIRTY_E_360_ISDA) * 360.0
     plain = year_fraction(start, end, DayCount.THIRTY_E_360) * 360.0
     assert abs(isda - plain) <= 2.0 + 1e-9
+
+
+@given(triple=st.tuples(_dates, _dates, _dates))
+def test_act_360_year_fraction_is_monotonic_in_end_date(triple: tuple[date, date, date]) -> None:
+    start, mid, end = sorted(triple)
+    assume(start < mid < end)
+
+    short_span = year_fraction(start, mid, DayCount.ACT_360)
+    long_span = year_fraction(start, end, DayCount.ACT_360)
+    assert long_span > short_span
