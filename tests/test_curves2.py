@@ -3,7 +3,12 @@ from datetime import date
 import pytest
 
 from rates_analytics.conventions import DayCount
-from rates_analytics.curves2.bootstrap import PiecewiseCurve, deposit_to_df
+from rates_analytics.curves2.bootstrap import (
+    DepositQuote,
+    PiecewiseCurve,
+    bootstrap_deposits,
+    deposit_to_df,
+)
 
 
 def test_curve_returns_exact_df_at_pillar() -> None:
@@ -60,3 +65,16 @@ def test_deposit_to_df_higher_rate_gives_lower_df() -> None:
     df_high_rate = deposit_to_df(start, end, 0.06, day_count)
 
     assert df_high_rate < df_low_rate
+
+
+def test_bootstrap_deposits_reprices_each_instrument_exactly() -> None:
+    """Every deposit used to buiild the curve should reprice exactly to its own maturity."""
+    quotes = [
+        DepositQuote(date(2026, 1, 1), date(2026, 4, 1), 0.045, DayCount.ACT_360),
+        DepositQuote(date(2026, 1, 1), date(2026, 7, 1), 0.048, DayCount.ACT_360),
+        DepositQuote(date(2026, 1, 1), date(2027, 1, 1), 0.050, DayCount.ACT_360),
+    ]
+    curve = bootstrap_deposits(quotes)
+    for quote in quotes:
+        maturity, expected_df = quote.bootstrap_deposit()
+        assert curve.discount(maturity) == pytest.approx(expected_df)

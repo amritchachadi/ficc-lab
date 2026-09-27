@@ -1,12 +1,19 @@
 """A piecewise-constant discount curve, defined by pillar maturities and discount factors."""
 
+from dataclasses import dataclass
 from datetime import date
 
 from rates_analytics.conventions import DayCount, year_fraction
 
 
 class PiecewiseCurve:
-    """A piecewise-constant discount curve, defined by pillar maturities and discount factors."""
+    """A piecewise-constant discount curve, defined by pillar maturities and discount factors.
+
+    Discount factors are currently required to lie in [0, 1], which means
+    this curve does not yet support the negative-rate regime (observed
+    historically in EUR and JPY markets). Revisiting this is a known,
+    deliberate scope limit, not an oversight.
+    """
 
     pillars: list[float]
     discount_factors: list[float]
@@ -44,3 +51,43 @@ def deposit_to_df(start: date, end: date, rate: float, day_count: DayCount) -> f
     """Convert a deposit rate to a discount factor."""
     t = year_fraction(start, end, day_count)
     return 1 / (1 + rate * t)
+
+
+@dataclass
+class DepositQuote:
+    """A deposit quote with start and end dates, rate, and day count convention."""
+
+    start: date
+    end: date
+    rate: float
+    day_count: DayCount
+
+    def to_discount_factor(self) -> float:
+        """Convert the deposit quote to a discount factor."""
+        return deposit_to_df(self.start, self.end, self.rate, self.day_count)
+
+    def __post_init__(self) -> None:
+        """Validate the deposit quote after initialization."""
+        if self.end <= self.start:
+            raise ValueError("End date must be strictly after start date.")
+        if self.rate < 0:
+            raise ValueError(
+                "Negative rates are not yet supported: PiecewiseCurve currently "
+                "requires discount factors in [0, 1], which excludes the "
+                "negative-rate regime (e.g. EUR/JPY historically)."
+            )
+
+    def bootstrap_deposit(self) -> tuple[float, float]:
+        """Return the maturity and discount factor for bootstrapping."""
+        maturity = year_fraction(self.start, self.end, self.day_count)
+        df = self.to_discount_factor()
+        return maturity, df
+
+
+def bootstrap_deposits(quotes: list[DepositQuote]) -> PiecewiseCurve:
+    """Bootstrap a piecewise curve from a list of deposit quotes."""
+    pairs = [quote.bootstrap_deposit() for quote in quotes]
+    sorted_pairs = sorted(pairs, key=lambda pair: pair[0])
+    pillars = [pair[0] for pair in sorted_pairs]
+    discount_factors = [pair[1] for pair in sorted_pairs]
+    return PiecewiseCurve(pillars, discount_factors)
