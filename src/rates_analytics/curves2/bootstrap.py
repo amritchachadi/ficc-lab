@@ -1,5 +1,9 @@
 """A piecewise-constant discount curve, defined by pillar maturities and discount factors."""
 
+from datetime import date
+
+from rates_analytics.conventions import DayCount, year_fraction
+
 
 class PiecewiseCurve:
     """A piecewise-constant discount curve, defined by pillar maturities and discount factors."""
@@ -34,3 +38,9 @@ class PiecewiseCurve:
                     df0, df1 = self.discount_factors[i], self.discount_factors[i + 1]
                     return df0 + (df1 - df0) * (maturity - t0) / (t1 - t0)
             raise ValueError("Maturity does not fall within any defined pillar intervals.")
+
+
+def deposit_to_df(start: date, end: date, rate: float, day_count: DayCount) -> float:
+    """Convert a deposit rate to a discount factor."""
+    t = year_fraction(start, end, day_count)
+    return 1 / (1 + rate * t)
