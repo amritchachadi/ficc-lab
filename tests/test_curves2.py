@@ -1,6 +1,9 @@
+from datetime import date
+
 import pytest
 
-from rates_analytics.curves2.bootstrap import PiecewiseCurve
+from rates_analytics.conventions import DayCount
+from rates_analytics.curves2.bootstrap import PiecewiseCurve, deposit_to_df
 
 
 def test_curve_returns_exact_df_at_pillar() -> None:
@@ -33,3 +36,27 @@ def test_construction_with_mismatched_lengths_raises() -> None:
     """Mismatched-length lists should raise ValueError at construction."""
     with pytest.raises(ValueError):
         PiecewiseCurve([1.0, 2.0], [0.98])
+
+
+def test_deposit_to_df() -> None:
+    """Test the deposit_to_df function with a simple case."""
+    start = date(2026, 3, 15)
+    end = date(2026, 6, 15)
+    rate = 0.0402
+    day_count = DayCount.ACT_360
+    df = deposit_to_df(start, end, rate, day_count)
+    expected_t = (end - start).days / 360.0
+    expected_df = 1 / (1 + rate * expected_t)
+
+    assert df == pytest.approx(expected_df)
+
+
+def test_deposit_to_df_higher_rate_gives_lower_df() -> None:
+    """A higher deposit rate should yield a lower discount factor."""
+    start = date(2026, 3, 15)
+    end = date(2026, 6, 15)
+    day_count = DayCount.ACT_360
+    df_low_rate = deposit_to_df(start, end, 0.03, day_count)
+    df_high_rate = deposit_to_df(start, end, 0.06, day_count)
+
+    assert df_high_rate < df_low_rate
