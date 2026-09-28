@@ -116,7 +116,10 @@ def _accruals(payment_dates: list[float]) -> list[float]:
         previous_date = payment_date
     return accruals
 
-def _solve_swap_df(curve: PiecewiseCurve, maturity: float, par_rate: float, fixed_leg_step: float) -> float:
+
+def _solve_swap_df(
+    curve: PiecewiseCurve, maturity: float, par_rate: float, fixed_leg_step: float
+) -> float:
     """Solve for the discount factor at a given maturity for a par swap.
 
     Assumes every payment date before ``maturity`` already falls within
@@ -130,5 +133,8 @@ def _solve_swap_df(curve: PiecewiseCurve, maturity: float, par_rate: float, fixe
     (SwapQuote and a full swap-aware bootstrap_curve don't exist yet)."""
     payment_schedule = _payment_schedule(maturity, fixed_leg_step)
     accruals = _accruals(payment_schedule)
-    known_sum = sum(accrual * curve.discount(payment_date) for accrual, payment_date in zip(accruals[:-1], payment_schedule[:-1], strict=True))
+    known_sum = sum(
+        accrual * curve.discount(payment_date)
+        for accrual, payment_date in zip(accruals[:-1], payment_schedule[:-1], strict=True)
+    )
     return (1 - par_rate * known_sum) / (1 + par_rate * accruals[-1])
