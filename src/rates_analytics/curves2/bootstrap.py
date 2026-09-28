@@ -130,7 +130,8 @@ def _solve_swap_df(
     are plain float years, generated independently of the deposit
     pillars' real calendar dates; a realistic bootstrap needs the two
     built from a shared date/convention basis, which is not yet wired up
-    (SwapQuote and a full swap-aware bootstrap_curve don't exist yet)."""
+    (SwapQuote and a full swap-aware bootstrap_curve don't exist yet).
+    """
     payment_schedule = _payment_schedule(maturity, fixed_leg_step)
     accruals = _accruals(payment_schedule)
     known_sum = sum(
