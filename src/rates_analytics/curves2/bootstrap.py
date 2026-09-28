@@ -91,3 +91,51 @@ def bootstrap_deposits(quotes: list[DepositQuote]) -> PiecewiseCurve:
     pillars = [pair[0] for pair in sorted_pairs]
     discount_factors = [pair[1] for pair in sorted_pairs]
     return PiecewiseCurve(pillars, discount_factors)
+
+
+def _payment_schedule(maturity: float, step: float) -> list[float]:
+    """Generate a payment schedule for a given maturity and step size."""
+    n_steps = round(maturity / step)
+    if abs(n_steps * step - maturity) > 1e-9:
+        raise ValueError("Maturity must be an integer multiple of step.")
+    else:
+        schedule = []
+        current_time = 0.0
+        while current_time < maturity:
+            current_time += step
+            schedule.append(current_time)
+        return schedule
+
+
+def _accruals(payment_dates: list[float]) -> list[float]:
+    """Generate accrual periods from a list of payment dates."""
+    accruals = []
+    previous_date = 0.0
+    for payment_date in payment_dates:
+        accruals.append(payment_date - previous_date)
+        previous_date = payment_date
+    return accruals
+
+
+def _solve_swap_df(
+    curve: PiecewiseCurve, maturity: float, par_rate: float, fixed_leg_step: float
+) -> float:
+    """Solve for the discount factor at a given maturity for a par swap.
+
+    Assumes every payment date before ``maturity`` already falls within
+    the curve's existing pillar range (either as an exact pillar or
+    interpolatable between two pillars) -- if the curve's shortest pillar
+    is longer than the swap's shortest payment date, this raises via
+    PiecewiseCurve.discount's own out-of-range check. Payment dates here
+    are plain float years, generated independently of the deposit
+    pillars' real calendar dates; a realistic bootstrap needs the two
+    built from a shared date/convention basis, which is not yet wired up
+    (SwapQuote and a full swap-aware bootstrap_curve don't exist yet).
+    """
+    payment_schedule = _payment_schedule(maturity, fixed_leg_step)
+    accruals = _accruals(payment_schedule)
+    known_sum = sum(
+        accrual * curve.discount(payment_date)
+        for accrual, payment_date in zip(accruals[:-1], payment_schedule[:-1], strict=True)
+    )
+    return (1 - par_rate * known_sum) / (1 + par_rate * accruals[-1])
