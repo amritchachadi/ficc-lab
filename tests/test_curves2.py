@@ -6,6 +6,7 @@ from rates_analytics.conventions import DayCount
 from rates_analytics.curves2.bootstrap import (
     DepositQuote,
     PiecewiseCurve,
+    SwapQuote,
     _accruals,
     _payment_schedule,
     _solve_swap_df,
@@ -106,3 +107,30 @@ def test_solve_swap_df_matches_hand_calculation() -> None:
     )
     df = _solve_swap_df(curve, maturity=1.0, par_rate=0.045, fixed_leg_step=0.25)
     assert df == pytest.approx(0.956168108776267)
+
+
+def test_swap_schedule_inputs_divides_evenly() -> None:
+    """The swap_schedule_inputs method returns a step size that divides the maturity evenly."""
+    for frequency in [1, 2, 4]:
+        quote = SwapQuote(date(2026, 1, 1), date(2027, 1, 1), 0.05, DayCount.ACT_360, frequency)
+        maturity, step = quote.swap_schedule_inputs()
+        n_periods = round(maturity / step)
+        assert n_periods * step == pytest.approx(maturity)
+
+
+def test_swap_quote_rejects_end_before_start() -> None:
+    """A SwapQuote with end date before start date should raise ValueError."""
+    with pytest.raises(ValueError):
+        SwapQuote(date(2026, 1, 1), date(2025, 1, 1), 0.05, DayCount.ACT_360, 4)
+
+
+def test_swap_quote_rejects_negative_rate() -> None:
+    """A SwapQuote with a negative rate should raise ValueError."""
+    with pytest.raises(ValueError):
+        SwapQuote(date(2026, 1, 1), date(2027, 1, 1), -0.01, DayCount.ACT_360, 4)
+
+
+def test_swap_quote_rejects_non_positive_frequency() -> None:
+    """A SwapQuote with a non-positive frequency should raise ValueError."""
+    with pytest.raises(ValueError):
+        SwapQuote(date(2026, 1, 1), date(2027, 1, 1), 0.05, DayCount.ACT_360, 0)

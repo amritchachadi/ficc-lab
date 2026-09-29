@@ -66,6 +66,12 @@ class DepositQuote:
         """Convert the deposit quote to a discount factor."""
         return deposit_to_df(self.start, self.end, self.rate, self.day_count)
 
+    def bootstrap_deposit(self) -> tuple[float, float]:
+        """Return the maturity and discount factor for bootstrapping."""
+        maturity = year_fraction(self.start, self.end, self.day_count)
+        df = self.to_discount_factor()
+        return maturity, df
+
     def __post_init__(self) -> None:
         """Validate the deposit quote after initialization."""
         if self.end <= self.start:
@@ -77,11 +83,36 @@ class DepositQuote:
                 "negative-rate regime (e.g. EUR/JPY historically)."
             )
 
-    def bootstrap_deposit(self) -> tuple[float, float]:
-        """Return the maturity and discount factor for bootstrapping."""
+
+@dataclass
+class SwapQuote:
+    """A swap quote with start/end dates, par rate, day count , and fixed leg payment step."""
+
+    start: date
+    end: date
+    rate: float
+    day_count: DayCount
+    frequency: int
+
+    def __post_init__(self) -> None:
+        """Validate the swap quote after initialization."""
+        if self.end <= self.start:
+            raise ValueError("End date must be strictly after start date.")
+        if self.rate < 0:
+            raise ValueError(
+                "Negative rates are not yet supported: PiecewiseCurve currently "
+                "requires discount factors in [0, 1], which excludes the "
+                "negative-rate regime (e.g. EUR/JPY historically)."
+            )
+        if self.frequency <= 0:
+            raise ValueError("Frequency must be positive.")
+
+    def swap_schedule_inputs(self) -> tuple[float, float]:
+        """Return the maturity and step size for the swap's fixed leg payment schedule."""
         maturity = year_fraction(self.start, self.end, self.day_count)
-        df = self.to_discount_factor()
-        return maturity, df
+        n_periods = round(maturity * self.frequency)
+        step = maturity / n_periods
+        return maturity, step
 
 
 def bootstrap_deposits(quotes: list[DepositQuote]) -> PiecewiseCurve:
