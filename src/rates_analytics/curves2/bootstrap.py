@@ -155,13 +155,22 @@ def _solve_swap_df(
 
     Assumes every payment date before ``maturity`` already falls within
     the curve's existing pillar range (either as an exact pillar or
-    interpolatable between two pillars) -- if the curve's shortest pillar
-    is longer than the swap's shortest payment date, this raises via
-    PiecewiseCurve.discount's own out-of-range check. Payment dates here
-    are plain float years, generated independently of the deposit
-    pillars' real calendar dates; a realistic bootstrap needs the two
-    built from a shared date/convention basis, which is not yet wired up
-    (SwapQuote and a full swap-aware bootstrap_curve don't exist yet).
+    interpolatable between two pillars) -- if not, this raises via
+    PiecewiseCurve.discount's own out-of-range check.
+
+    Confirmed limitation (not just theoretical): payment dates are
+    plain float years, and each instrument's schedule is generated
+    independently from its own year_fraction-derived maturity and its
+    own derived step. Even two swaps a single quarter apart in tenor
+    produce slightly different step sizes (e.g. 0.253472 vs 0.253704
+    for two Act/360 swaps three months apart), so their payment grids
+    never actually coincide. This means a bootstrap_curve built purely
+    from independently-generated float schedules cannot, in general,
+    be made gap-free no matter how densely instruments are added --
+    confirmed by direct testing, not just reasoned about. A real fix
+    needs all instruments to share one common anchor date and a
+    consistent, date-based schedule generation, not independent
+    float-based schedules per instrument.
     """
     payment_schedule = _payment_schedule(maturity, fixed_leg_step)
     accruals = _accruals(payment_schedule)
@@ -170,3 +179,35 @@ def _solve_swap_df(
         for accrual, payment_date in zip(accruals[:-1], payment_schedule[:-1], strict=True)
     )
     return (1 - par_rate * known_sum) / (1 + par_rate * accruals[-1])
+
+
+def _quote_maturity(quote: DepositQuote | SwapQuote) -> float:
+    if isinstance(quote, DepositQuote):
+        maturity, _ = quote.bootstrap_deposit()
+    else:
+        maturity, _ = quote.swap_schedule_inputs()
+    return maturity
+
+
+def bootstrap_curve(quotes: list[DepositQuote | SwapQuote]) -> PiecewiseCurve:
+    """Bootstrap a piecewise curve from a list of deposit and swap quotes."""
+    pillars: list[float] = []
+    discount_factors: list[float] = []
+    sorted_quotes = sorted(quotes, key=_quote_maturity)
+    for quote in sorted_quotes:
+        if isinstance(quote, DepositQuote):
+            maturity, df = quote.bootstrap_deposit()
+        else:
+            maturity, step = quote.swap_schedule_inputs()
+            curve_so_far = PiecewiseCurve(pillars, discount_factors)
+            df = _solve_swap_df(curve_so_far, maturity, quote.rate, step)
+
+        if pillars and abs(pillars[-1] - maturity) < 1e-9:
+            raise ValueError(
+                f"Two instruments produced maturities within tolerance of each other "
+                f"({pillars[-1]} and {maturity}); caller must resolve which one to use."
+            )
+
+        pillars.append(maturity)
+        discount_factors.append(df)
+    return PiecewiseCurve(pillars, discount_factors)

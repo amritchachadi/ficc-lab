@@ -10,6 +10,7 @@ from rates_analytics.curves2.bootstrap import (
     _accruals,
     _payment_schedule,
     _solve_swap_df,
+    bootstrap_curve,
     bootstrap_deposits,
     deposit_to_df,
 )
@@ -134,3 +135,31 @@ def test_swap_quote_rejects_non_positive_frequency() -> None:
     """A SwapQuote with a non-positive frequency should raise ValueError."""
     with pytest.raises(ValueError):
         SwapQuote(date(2026, 1, 1), date(2027, 1, 1), 0.05, DayCount.ACT_360, 0)
+
+
+def test_bootstrap_curve_rejects_colliding_maturities() -> None:
+    """Two instruments producing the same maturity should raise, not silently overwrite."""
+    quotes: list[DepositQuote | SwapQuote] = [
+        DepositQuote(date(2026, 1, 1), date(2027, 1, 1), 0.046, DayCount.ACT_360),
+        SwapQuote(date(2026, 1, 1), date(2027, 1, 1), 0.047, DayCount.ACT_360, 4),
+    ]
+    with pytest.raises(ValueError):
+        bootstrap_curve(quotes)
+
+
+def test_bootstrap_curve_swap_next_to_deposits_hits_alignment_gap() -> None:
+    """A swap's independently-derived payment schedule does not always align.
+
+    Deposit pillars come from separate dates and conventions; this documents
+    the current, known limitation described in _solve_swap_df's docstring,
+    rather than asserting success the current design cannot reliably provide.
+    """
+    quotes: list[DepositQuote | SwapQuote] = [
+        DepositQuote(date(2026, 1, 1), date(2026, 4, 1), 0.040, DayCount.ACT_360),
+        DepositQuote(date(2026, 1, 1), date(2026, 7, 1), 0.042, DayCount.ACT_360),
+        DepositQuote(date(2026, 1, 1), date(2026, 10, 1), 0.044, DayCount.ACT_360),
+        DepositQuote(date(2026, 1, 1), date(2026, 12, 20), 0.046, DayCount.ACT_360),
+        SwapQuote(date(2026, 1, 1), date(2027, 3, 1), 0.047, DayCount.ACT_360, 4),
+    ]
+    with pytest.raises(ValueError, match="does not fall within"):
+        bootstrap_curve(quotes)
