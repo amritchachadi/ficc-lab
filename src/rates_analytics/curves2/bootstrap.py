@@ -1,9 +1,19 @@
 """A piecewise-constant discount curve, defined by pillar maturities and discount factors."""
 
+import math
 from dataclasses import dataclass
 from datetime import date
+from enum import StrEnum
 
 from rates_analytics.conventions import DayCount, year_fraction
+
+
+class InterpolationMethod(StrEnum):
+    """Interpolation scheme used between curve pillars."""
+
+    LINEAR_DISCOUNT = "linear_discount"
+    LINEAR_ZERO = "linear_zero"
+    LOG_DISCOUNT = "log_discount"
 
 
 class PiecewiseCurve:
@@ -18,10 +28,16 @@ class PiecewiseCurve:
     pillars: list[float]
     discount_factors: list[float]
 
-    def __init__(self, pillars: list[float], discount_factors: list[float]) -> None:
+    def __init__(
+        self,
+        pillars: list[float],
+        discount_factors: list[float],
+        interpolation: InterpolationMethod = InterpolationMethod.LINEAR_DISCOUNT,
+    ) -> None:
         """Initialize the piecewise curve with pillars and discount factors."""
         self.pillars = pillars
         self.discount_factors = discount_factors
+        self.interpolation = interpolation
         if len(self.pillars) != len(self.discount_factors):
             raise ValueError("Pillars and discount factors must have the same length.")
         if not self.pillars:
@@ -43,7 +59,16 @@ class PiecewiseCurve:
                 if self.pillars[i] <= maturity <= self.pillars[i + 1]:
                     t0, t1 = self.pillars[i], self.pillars[i + 1]
                     df0, df1 = self.discount_factors[i], self.discount_factors[i + 1]
-                    return df0 + (df1 - df0) * (maturity - t0) / (t1 - t0)
+                    w = (maturity - t0) / (t1 - t0)
+                    if self.interpolation == InterpolationMethod.LINEAR_DISCOUNT:
+                        return df0 + w * (df1 - df0)
+                    elif self.interpolation == InterpolationMethod.LINEAR_ZERO:
+                        z1 = -math.log(df1) / t1
+                        z0 = -math.log(df0) / t0
+                        z = z0 + w * (z1 - z0)
+                        return math.exp(-z * maturity)
+                    else:  # LOG_DISCOUNT
+                        return math.exp(math.log(df0) + w * (math.log(df1) - math.log(df0)))
             raise ValueError("Maturity does not fall within any defined pillar intervals.")
 
 
