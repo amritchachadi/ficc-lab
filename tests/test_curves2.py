@@ -5,6 +5,7 @@ import pytest
 from rates_analytics.conventions import DayCount
 from rates_analytics.curves2.bootstrap import (
     DepositQuote,
+    InterpolationMethod,
     PiecewiseCurve,
     SwapQuote,
     _accruals,
@@ -163,3 +164,33 @@ def test_bootstrap_curve_swap_next_to_deposits_hits_alignment_gap() -> None:
     ]
     with pytest.raises(ValueError, match="does not fall within"):
         bootstrap_curve(quotes)
+
+
+def test_linear_zero_interpolation_matches_hand_calculation() -> None:
+    """Linear-zero interpolated discount factor matches an independently hand-derived value."""
+    pillars = [1.0, 2.0, 5.0]
+    discount_factors = [0.95, 0.90, 0.75]
+    curve = PiecewiseCurve(pillars, discount_factors, InterpolationMethod.LINEAR_ZERO)
+    assert curve.discount(3.0) == pytest.approx(0.8496787601654118)
+
+
+def test_log_discount_interpolation_matches_hand_calculation() -> None:
+    """Log-discount interpolated discount factor matches an independently hand-derived value."""
+    pillars = [1.0, 2.0, 5.0]
+    discount_factors = [0.95, 0.90, 0.75]
+    curve = PiecewiseCurve(pillars, discount_factors, InterpolationMethod.LOG_DISCOUNT)
+    assert curve.discount(3.0) == pytest.approx(0.8469324259929256)
+
+
+def test_interpolation_methods_produce_different_results() -> None:
+    """The three interpolation schemes genuinely disagree at a non-pillar maturity."""
+    pillars = [1.0, 2.0, 5.0]
+    discount_factors = [0.95, 0.90, 0.75]
+    results = {
+        method: PiecewiseCurve(pillars, discount_factors, method).discount(3.0)
+        for method in InterpolationMethod
+    }
+    values = list(results.values())
+    assert values[0] != pytest.approx(values[1])
+    assert values[1] != pytest.approx(values[2])
+    assert values[0] != pytest.approx(values[2])
