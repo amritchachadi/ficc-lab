@@ -39,6 +39,7 @@ packages = ["src/rates_analytics"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = ["archive"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "N", "RUF", "ANN", "D"]
