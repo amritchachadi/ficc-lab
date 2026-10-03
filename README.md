@@ -3,7 +3,8 @@
 [![ci](https://github.com/amritchachadi/ficc-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/amritchachadi/ficc-lab/actions/workflows/ci.yml)
 
 Fixed-income analytics with explicit, tested convention handling: day counts and
-schedule generation today, curve construction and bond pricing next.
+schedule generation, and a first curve-construction layer (deposit and swap
+bootstrapping with selectable interpolation). Bond pricing and risk come next.
 
 The premise is that most fixed-income pricing errors are not model errors. They
 are convention errors, and the same handful recur throughout the literature and
@@ -15,8 +16,10 @@ path works.
 
 ## Status
 
-Early. The conventions layer is implemented and tested; everything below it in
-the roadmap is not written yet. See [Limitations](#limitations).
+Early and actively developed. The conventions layer is implemented and tested.
+A single-curve bootstrapper (`curves2`) is implemented with documented limits;
+dual-curve construction, bond analytics, risk and inflation are not written yet.
+See [Limitations](#limitations) and [How this was built](#how-this-was-built).
 
 ## What is implemented
 
@@ -43,6 +46,50 @@ Dates are rolled *from the anchor* (`anchor + k months`) rather than by stepping
 a cursor forward repeatedly, so a February or month-end clamp early in a
 schedule cannot drift every date after it.
 
+## Curves
+
+`rates_analytics.curves2` builds a discount curve from market quotes:
+
+- **Deposits** convert directly to a discount factor, `DF = 1 / (1 + r·t)`, with
+  `t` from the quote's day count.
+- **Par swaps** are solved in closed form for the discount factor at the swap's
+  maturity, given the discount factors already bootstrapped for earlier
+  payment dates.
+- **Bootstrapping** proceeds in maturity order, so every instrument reprices
+  exactly at its own pillar. Two instruments producing the same maturity raise
+  rather than silently overwriting each other.
+- **Interpolation** is selectable per curve: linear on discount factors (the
+  default), linear on zero rates, or log-linear on discount factors. They agree
+  at the pillars and differ between them, which is what drives differences in
+  implied forward rates (slope discontinuities at pillars are the usual "kink").
+
+```python
+from datetime import date
+
+from rates_analytics.conventions import DayCount
+from rates_analytics.curves2.bootstrap import (
+    DepositQuote,
+    InterpolationMethod,
+    PiecewiseCurve,
+    bootstrap_deposits,
+)
+
+# Deposits only: every quote reprices exactly at its own maturity.
+curve = bootstrap_deposits(
+    [
+        DepositQuote(date(2026, 1, 1), date(2026, 4, 1), 0.045, DayCount.ACT_360),
+        DepositQuote(date(2026, 1, 1), date(2026, 7, 1), 0.048, DayCount.ACT_360),
+        DepositQuote(date(2026, 1, 1), date(2027, 1, 1), 0.050, DayCount.ACT_360),
+    ]
+)
+
+# The same pillars, interpolated three ways, give three different values
+# between pillars and identical values at them.
+pillars, dfs = [1.0, 2.0, 5.0], [0.95, 0.90, 0.75]
+for method in InterpolationMethod:
+    PiecewiseCurve(pillars, dfs, method).discount(3.0)
+```
+
 ## Validation
 
 There is no authoritative free dataset of bond analytics to regress against, so
@@ -50,7 +97,8 @@ correctness here rests on three independent legs:
 
 1. **Known values.** Worked examples from the ISDA 2006 Definitions and SIFMA,
    plus date pairs chosen specifically to separate conventions that agree on
-   ordinary dates and diverge only at month ends.
+   ordinary dates and diverge only at month ends. Curve code is checked against
+   hand-derived discount factors.
 2. **Properties.** Invariants asserted over generated dates with `hypothesis`:
    additivity across a split point for the conventions that are genuinely
    additive (and *not* for the 30/360 family, which is not), monotonicity in the
@@ -101,7 +149,8 @@ uv sync --all-extras --dev
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
 ```
 
-CI runs exactly that on 3.11 and 3.12.
+CI runs exactly that on 3.11 and 3.12. `main` is protected: changes land through
+pull requests, and the `check` and `backtest` jobs must pass before merge.
 
 ## Research tooling (OpenRouter)
 
@@ -143,13 +192,39 @@ null case every signal should be measured against.
 
 CI wires this into three workflows: `ci` (lint, types, tests), `backtest`
 (a PR gate that runs the config and checks guard rails, uploading the report
-as an artifact), and `llm-review` (the PR reviewer above). Set
+as an artifact), and `llm-review` (the PR reviewer above, non-blocking). Set
 `OPENROUTER_API_KEY` as a repository secret for the LLM workflows; the rest
-never need a key.
+never need a key. Keep real keys in `.env`, which is git-ignored.
+
+## How this was built
+
+This is a learning project, developed with AI assistance, and the repo says so
+openly.
+
+- The **conventions layer, schedules, and the research/backtest tooling** were
+  scaffolded with AI assistance and then reviewed, tested and extended by hand.
+- The **`curves2` package and its tests** were written by hand as a learning
+  exercise: design, validation rules, and the interpolation schemes. [FILL IN:
+  state precisely what you wrote yourself versus what was AI-assisted, e.g.
+  "AI explained the maths and reviewed; I wrote the code and tests."]
+- An earlier AI-generated curve bootstrapper is kept for reference under
+  [`archive/`](archive/README.md). It is excluded from lint, type checks and CI,
+  and nothing in `src/` imports it.
+
+Commit history is left as it happened.
 
 ## Limitations
 
-- **Scope.** Conventions only so far. No curves, no pricing, no risk yet.
+- **Scope.** Conventions, schedules, and a single-curve deposit/swap bootstrapper.
+  No dual-curve construction, no bond pricing, no risk yet.
+- **Schedule alignment in `curves2`.** Each instrument's payment schedule is
+  generated independently as float year fractions, so grids from different
+  instruments do not coincide. A swap's earlier payment dates can fall outside
+  the pillars bootstrapped so far, and the bootstrap then raises ("does not fall
+  within any defined pillar intervals"). This is documented in code and pinned
+  by a test. The fix is a shared, date-based schedule grid and is planned.
+- **No extrapolation.** Querying a maturity outside the pillar range raises.
+- **No negative rates.** Discount factors must lie in [0, 1].
 - **Calendars** are weekend-plus-explicit-holidays. There are no built-in
   currency or exchange calendars; supply your own holiday set.
 - **Stubs** are implicit in the generation direction. Explicit long stubs and
@@ -160,9 +235,11 @@ never need a key.
 
 ## Roadmap
 
-1. Curve construction — dual-curve SOFR bootstrapping (OIS discounting plus
-   projection), with a comparison of interpolation schemes and their effect on
-   forward rates rather than just on zeros.
+1. Curve construction — a shared date grid to remove the alignment limit, then
+   dual-curve SOFR bootstrapping (OIS discounting plus projection), with a
+   comparison of interpolation schemes and their effect on forward rates rather
+   than just on zeros. Single-curve bootstrapping and the three interpolation
+   schemes are done.
 2. Bond analytics — fixed bullet, FRN (discount margin, and duration measured to
    the next reset rather than to maturity), fixed-to-float with per-step
    conventions, and callable with OAS against a calibrated short-rate model.
