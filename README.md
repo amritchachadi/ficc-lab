@@ -204,9 +204,7 @@ openly.
 - The **conventions layer, schedules, and the research/backtest tooling** were
   scaffolded with AI assistance and then reviewed, tested and extended by hand.
 - The **`curves2` package and its tests** were written by hand as a learning
-  exercise: design, validation rules, and the interpolation schemes. [FILL IN:
-  state precisely what you wrote yourself versus what was AI-assisted, e.g.
-  "AI explained the maths and reviewed; I wrote the code and tests."]
+  exercise: design, validation rules, and the interpolation schemes.
 - An earlier AI-generated curve bootstrapper is kept for reference under
   [`archive/`](archive/README.md). It is excluded from lint, type checks and CI,
   and nothing in `src/` imports it.
