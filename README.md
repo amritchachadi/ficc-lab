@@ -62,6 +62,10 @@ schedule cannot drift every date after it.
   default), linear on zero rates, or log-linear on discount factors. They agree
   at the pillars and differ between them, which is what drives differences in
   implied forward rates (slope discontinuities at pillars are the usual "kink").
+  - **Dual-curve pricing** (`curves2.dual_curve`): forward rates are read from a
+    projection curve and cash flows are discounted on a separate curve. Fixed and
+    floating leg PVs, swap PV and the par swap rate are provided; single-curve
+    pricing is the special case where both curves are the same.
 
 ```python
 from datetime import date
@@ -213,8 +217,10 @@ Commit history is left as it happened.
 
 ## Limitations
 
-- **Scope.** Conventions, schedules, and a single-curve deposit/swap bootstrapper.
-  No dual-curve construction, no bond pricing, no risk yet.
+-   - **Scope.** Conventions, schedules, a single-curve deposit/swap bootstrapper and
+    dual-curve swap pricing on given curves. No dual-curve bootstrapping from
+    market quotes, no bond pricing, no risk yet.
+
 - **Schedule alignment in `curves2`.** Each instrument's payment schedule is
   generated independently as float year fractions, so grids from different
   instruments do not coincide. A swap's earlier payment dates can fall outside
