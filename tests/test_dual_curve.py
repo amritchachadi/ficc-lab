@@ -3,7 +3,13 @@
 import pytest
 
 from rates_analytics.curves2.bootstrap import PiecewiseCurve
-from rates_analytics.curves2.dual_curve import fixed_leg_pv, floating_leg_pv, forward_rate
+from rates_analytics.curves2.dual_curve import (
+    fixed_leg_pv,
+    floating_leg_pv,
+    forward_rate,
+    par_swap_rate,
+    swap_pv,
+)
 
 
 def test_forward_rate_matches_hand_calculation() -> None:
@@ -101,3 +107,32 @@ def test_fixed_leg_pv_accepts_single_payment() -> None:
     """A one-period leg is valid: PV is rate * tau * DF with tau = 1.0."""
     discount, _ = _curves()
     assert fixed_leg_pv(discount, [1.0], rate=0.04) == pytest.approx(0.04 * 1.0 * 0.975)
+
+
+def test_dual_curve_par_rate_matches_hand_calculation() -> None:
+    """Par swap rate matches the hand value 0.0405165816 / 0.9825 ≈ 0.0412."""
+    discount, projection = _curves()
+    assert par_swap_rate(discount, projection, [0.5, 1.0]) == pytest.approx(0.0405165816 / 0.9825)
+
+
+def test_single_curve_par_rate_matches_hand_calculation() -> None:
+    """Par swap rate with a single curve matches the hand value 0.025 / 0.9825 ≈ 0.0254."""
+    discount, _ = _curves()
+    expected_rate = (1 - 0.975) / 0.9825
+    assert par_swap_rate(discount, discount, [0.5, 1.0]) == pytest.approx(expected_rate)
+
+
+def test_par_rate_reprices_to_zero_swap_pv() -> None:
+    """A par swap has PV of zero."""
+    discount, projection = _curves()
+    par_rate = par_swap_rate(discount, projection, [0.5, 1.0])
+    pv = swap_pv(discount, projection, [0.5, 1.0], par_rate)
+    assert pv == pytest.approx(0.0, abs=1e-12)
+
+
+def test_dual_curve_rate_greater_than_single_curve_rate() -> None:
+    """A dual-curve par rate is greater than the single-curve par rate."""
+    discount, projection = _curves()
+    dual_rate = par_swap_rate(discount, projection, [0.5, 1.0])
+    single_rate = par_swap_rate(discount, discount, [0.5, 1.0])
+    assert dual_rate > single_rate

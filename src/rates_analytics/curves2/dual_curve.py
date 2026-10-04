@@ -68,3 +68,19 @@ def fixed_leg_pv(discount: PiecewiseCurve, payment_times: list[float], rate: flo
         tau = t_end - t_start
         total += rate * tau * discount.discount(t_end)
     return total
+
+
+def swap_pv(
+    discount: PiecewiseCurve, projection: PiecewiseCurve, payment_times: list[float], rate: float
+) -> float:
+    """Return the PV of a payer swap (receive floating, pay fixed) on unit notional."""
+    floating = floating_leg_pv(discount, projection, payment_times)
+    return floating - fixed_leg_pv(discount, payment_times, rate)
+
+
+def par_swap_rate(
+    discount: PiecewiseCurve, projection: PiecewiseCurve, payment_times: list[float]
+) -> float:
+    """Return the fixed rate that gives the swap a PV of zero."""
+    annuity = fixed_leg_pv(discount, payment_times, rate=1.0)
+    return floating_leg_pv(discount, projection, payment_times) / annuity
