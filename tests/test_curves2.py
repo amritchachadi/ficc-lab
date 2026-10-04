@@ -194,3 +194,11 @@ def test_interpolation_methods_produce_different_results() -> None:
     assert values[0] != pytest.approx(values[1])
     assert values[1] != pytest.approx(values[2])
     assert values[0] != pytest.approx(values[2])
+
+
+def test_linear_zero_interpolation_rejects_left_pillar_at_zero() -> None:
+    """Linear-zero interpolation is undefined when the left pillar is at t=0."""
+    pillars = [0.0, 0.5]
+    discount_factors = [1.0, 0.98]
+    with pytest.raises(ValueError, match="t=0"):
+        PiecewiseCurve(pillars, discount_factors, InterpolationMethod.LINEAR_ZERO)

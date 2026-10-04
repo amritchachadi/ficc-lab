@@ -48,6 +48,10 @@ class PiecewiseCurve:
             raise ValueError("Pillars must be sorted in ascending order.")
         if not all(0 <= df <= 1 for df in self.discount_factors):
             raise ValueError("Discount factors must be in the range [0, 1].")
+        if self.interpolation == InterpolationMethod.LINEAR_ZERO and self.pillars[0] <= 0:
+            raise ValueError(
+                "LINEAR_ZERO interpolation is undefined when the first pillar is at t=0."
+            )
 
     def discount(self, maturity: float) -> float:
         """Return the discount factor for a given maturity."""
