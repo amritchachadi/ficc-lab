@@ -1,5 +1,7 @@
 """Bond cash flows and pricing."""
 
+from rates_analytics.curves2.bootstrap import PiecewiseCurve
+
 
 def bond_cash_flows(
     face: float, coupon_rate: float, frequency: int, n_periods: int
@@ -21,3 +23,10 @@ def bond_cash_flows(
             amount += face
         cash_flows.append((period / frequency, amount))
     return cash_flows
+
+
+def dirty_price(curve: PiecewiseCurve, cash_flows: list[tuple[float, float]]) -> float:
+    """Calculate the dirty price of a bond given a discount curve and cash flows."""
+    if not cash_flows:
+        raise ValueError("Cash flows cannot be empty.")
+    return sum(amount * curve.discount(time) for time, amount in cash_flows)

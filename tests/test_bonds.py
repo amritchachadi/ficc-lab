@@ -1,8 +1,9 @@
-"""Tests for fixed-coupon bond cash flows."""
+"""Tests for fixed-coupon bond cash flows and pricing."""
 
 import pytest
 
-from rates_analytics.bonds.fixed import bond_cash_flows
+from rates_analytics.bonds.fixed import bond_cash_flows, dirty_price
+from rates_analytics.curves2.bootstrap import PiecewiseCurve
 
 
 def test_bond_cash_flows_match_hand_schedule() -> None:
@@ -41,3 +42,40 @@ def test_bond_invalid_n_periods() -> None:
     """A bond with less than 1 period raises ValueError."""
     with pytest.raises(ValueError, match="Number of periods must be at least 1"):
         bond_cash_flows(100, 0.04, 2, 0)
+
+
+def _curve() -> PiecewiseCurve:
+    """Return the curve used by the pricing tests."""
+    return PiecewiseCurve([0.5, 1.0, 1.5, 2.0], [0.98, 0.96, 0.94, 0.92])
+
+
+def test_dirty_price_match_hand_value() -> None:
+    """A 2-year 4% semiannual bond has a dirty price of 99.6."""
+    curve = _curve()
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    price = dirty_price(curve, flows)
+    assert price == pytest.approx(99.6)
+
+
+def test_par_bond_price() -> None:
+    """A par bond has a dirty price of 100."""
+    curve = _curve()
+    par_rate = (1 - 0.92) / 1.9
+    flows = bond_cash_flows(100, par_rate, 2, 4)
+    price = dirty_price(curve, flows)
+    assert price == pytest.approx(100.0)
+
+
+def test_empty_cash_flows() -> None:
+    """Dirty price with empty cash flows raises ValueError."""
+    curve = _curve()
+    with pytest.raises(ValueError, match="Cash flows cannot be empty"):
+        dirty_price(curve, [])
+
+
+def test_bond_maturing_past_last_pillar() -> None:
+    """A bond maturing after the last pillar raises ValueError."""
+    curve = _curve()
+    flows = bond_cash_flows(100, 0.04, 2, 10)
+    with pytest.raises(ValueError, match="does not fall within any defined pillar interval"):
+        dirty_price(curve, flows)
