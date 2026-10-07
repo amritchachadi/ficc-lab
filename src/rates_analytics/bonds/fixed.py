@@ -1,5 +1,8 @@
 """Bond cash flows and pricing."""
 
+from datetime import date
+
+from rates_analytics.conventions import DayCount, year_fraction
 from rates_analytics.curves2.bootstrap import PiecewiseCurve
 
 
@@ -30,3 +33,31 @@ def dirty_price(curve: PiecewiseCurve, cash_flows: list[tuple[float, float]]) ->
     if not cash_flows:
         raise ValueError("Cash flows cannot be empty.")
     return sum(amount * curve.discount(time) for time, amount in cash_flows)
+
+
+def accrued_interest(
+    face: float,
+    coupon_rate: float,
+    frequency: int,
+    last_coupon: date,
+    settlement: date,
+    next_coupon: date,
+    day_count: DayCount = DayCount.ACT_ACT_ICMA,
+) -> float:
+    """Calculate the accrued interest of a bond given last coupon and settlement dates."""
+    if not last_coupon <= settlement < next_coupon:
+        raise ValueError("Settlement must be on or after the last coupon and before the next.")
+    tau = year_fraction(
+        last_coupon,
+        settlement,
+        day_count,
+        ref_period_start=last_coupon,
+        ref_period_end=next_coupon,
+        frequency=frequency,
+    )
+    return face * coupon_rate * tau
+
+
+def clean_price(dirty: float, accrued: float) -> float:
+    """Calculate the clean price of a bond given dirty price and accrued interest."""
+    return dirty - accrued

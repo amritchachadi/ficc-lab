@@ -1,8 +1,11 @@
 """Tests for fixed-coupon bond cash flows and pricing."""
 
+from datetime import date
+
 import pytest
 
-from rates_analytics.bonds.fixed import bond_cash_flows, dirty_price
+from rates_analytics.bonds.fixed import accrued_interest, bond_cash_flows, clean_price, dirty_price
+from rates_analytics.conventions import DayCount
 from rates_analytics.curves2.bootstrap import PiecewiseCurve
 
 
@@ -79,3 +82,79 @@ def test_bond_maturing_past_last_pillar() -> None:
     flows = bond_cash_flows(100, 0.04, 2, 10)
     with pytest.raises(ValueError, match="does not fall within any defined pillar interval"):
         dirty_price(curve, flows)
+
+
+def test_bond_icma_accrued_interest_hand_calculation() -> None:
+    """Act/Act ICMA accrued is 2 * 59/181 two months into the period."""
+    accrued = accrued_interest(
+        face=100,
+        coupon_rate=0.04,
+        frequency=2,
+        last_coupon=date(2026, 1, 15),
+        settlement=date(2026, 3, 15),
+        next_coupon=date(2026, 7, 15),
+        day_count=DayCount.ACT_ACT_ICMA,
+    )
+    assert accrued == pytest.approx(2 * 59 / 181)
+
+
+def test_bond_30_360_accrued_interest_hand_calculation() -> None:
+    """30/360 US accrued is 4 * 60/360 for the same dates."""
+    accrued = accrued_interest(
+        face=100,
+        coupon_rate=0.04,
+        frequency=2,
+        last_coupon=date(2026, 1, 15),
+        settlement=date(2026, 3, 15),
+        next_coupon=date(2026, 7, 15),
+        day_count=DayCount.THIRTY_360_US,
+    )
+    assert accrued == pytest.approx(100 * 0.04 * 60 / 360)
+
+
+def test_bond_accrued_interest_settlement_on_last_coupon() -> None:
+    """Accrued interest is zero if settlement is on the last coupon date."""
+    accrued = accrued_interest(
+        face=100,
+        coupon_rate=0.04,
+        frequency=2,
+        last_coupon=date(2026, 1, 15),
+        settlement=date(2026, 1, 15),
+        next_coupon=date(2026, 7, 15),
+        day_count=DayCount.ACT_ACT_ICMA,
+    )
+    assert accrued == pytest.approx(0.0)
+
+
+def test_bond_accrued_interest_settlement_on_next_coupon() -> None:
+    """Accrued interest is zero if settlement is on the next coupon date."""
+    with pytest.raises(ValueError, match="before the next"):
+        accrued_interest(
+            face=100,
+            coupon_rate=0.04,
+            frequency=2,
+            last_coupon=date(2026, 1, 15),
+            settlement=date(2026, 7, 15),
+            next_coupon=date(2026, 7, 15),
+            day_count=DayCount.ACT_ACT_ICMA,
+        )
+
+
+def test_bond_accrued_interest_settlement_before_last_coupon() -> None:
+    """Accrued interest raises ValueError if settlement is before the last coupon date."""
+    with pytest.raises(ValueError, match="on or after the last coupon"):
+        accrued_interest(
+            face=100,
+            coupon_rate=0.04,
+            frequency=2,
+            last_coupon=date(2026, 1, 15),
+            settlement=date(2026, 1, 14),
+            next_coupon=date(2026, 7, 15),
+            day_count=DayCount.ACT_ACT_ICMA,
+        )
+
+
+def test_bond_clean_price_calculation() -> None:
+    """Clean price is dirty price minus accrued interest."""
+    clean = clean_price(dirty=100.25, accrued=0.65)
+    assert clean == pytest.approx(99.60)
