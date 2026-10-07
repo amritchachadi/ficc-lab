@@ -1,5 +1,6 @@
 """Bond cash flows and pricing."""
 
+import math
 from datetime import date
 
 from rates_analytics.conventions import DayCount, year_fraction
@@ -61,3 +62,17 @@ def accrued_interest(
 def clean_price(dirty: float, accrued: float) -> float:
     """Calculate the clean price of a bond given dirty price and accrued interest."""
     return dirty - accrued
+
+
+def price_from_yield(
+    cash_flows: list[tuple[float, float]], yield_rate: float, frequency: int
+) -> float:
+    """Calculate the dirty price of a bond given yield to maturity and cash flows."""
+    if not cash_flows:
+        raise ValueError("Cash flows cannot be empty.")
+    if frequency <= 0:
+        raise ValueError("Frequency must be positive.")
+    base = 1 + yield_rate / frequency
+    if base <= 0:
+        raise ValueError("Yield is too low: 1 + yield / frequency must be positive.")
+    return sum(amount / math.pow(base, frequency * time) for time, amount in cash_flows)

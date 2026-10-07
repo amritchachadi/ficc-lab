@@ -4,7 +4,13 @@ from datetime import date
 
 import pytest
 
-from rates_analytics.bonds.fixed import accrued_interest, bond_cash_flows, clean_price, dirty_price
+from rates_analytics.bonds.fixed import (
+    accrued_interest,
+    bond_cash_flows,
+    clean_price,
+    dirty_price,
+    price_from_yield,
+)
 from rates_analytics.conventions import DayCount
 from rates_analytics.curves2.bootstrap import PiecewiseCurve
 
@@ -127,7 +133,7 @@ def test_bond_accrued_interest_settlement_on_last_coupon() -> None:
 
 
 def test_bond_accrued_interest_settlement_on_next_coupon() -> None:
-    """Accrued interest is zero if settlement is on the next coupon date."""
+    """Settlement on the next coupon date is rejected."""
     with pytest.raises(ValueError, match="before the next"):
         accrued_interest(
             face=100,
@@ -158,3 +164,32 @@ def test_bond_clean_price_calculation() -> None:
     """Clean price is dirty price minus accrued interest."""
     clean = clean_price(dirty=100.25, accrued=0.65)
     assert clean == pytest.approx(99.60)
+
+
+def test_bond_price_from_yield_par_bond() -> None:
+    """A 4% bond priced at a 4% yield is worth par."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    price = price_from_yield(flows, yield_rate=0.04, frequency=2)
+    assert price == pytest.approx(100.0)
+
+
+def test_bond_price_from_yield_discounted_bond() -> None:
+    """Price from yield matches discounted bond price."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    price = price_from_yield(flows, yield_rate=0.06, frequency=2)
+    expected = 2 / 1.03 + 2 / 1.03**2 + 2 / 1.03**3 + 102 / 1.03**4
+    assert price == pytest.approx(expected)
+
+
+def test_compare_price_vs_bond_yield() -> None:
+    """Price from 6 percent yield bond is lower than price of 5 percent yield bond."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    price_5 = price_from_yield(flows, yield_rate=0.05, frequency=2)
+    price_6 = price_from_yield(flows, yield_rate=0.06, frequency=2)
+    assert price_6 < price_5
+
+
+def test_bond_empty_cash_flows_price_from_yield() -> None:
+    """Price from yield with empty cash flows raises ValueError."""
+    with pytest.raises(ValueError, match="Cash flows cannot be empty"):
+        price_from_yield([], yield_rate=0.05, frequency=2)
