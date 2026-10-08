@@ -10,6 +10,7 @@ from rates_analytics.bonds.fixed import (
     clean_price,
     dirty_price,
     price_from_yield,
+    yield_to_maturity,
 )
 from rates_analytics.conventions import DayCount
 from rates_analytics.curves2.bootstrap import PiecewiseCurve
@@ -193,3 +194,40 @@ def test_bond_empty_cash_flows_price_from_yield() -> None:
     """Price from yield with empty cash flows raises ValueError."""
     with pytest.raises(ValueError, match="Cash flows cannot be empty"):
         price_from_yield([], yield_rate=0.05, frequency=2)
+
+
+def test_ytm_of_par_price_is_the_coupon_rate() -> None:
+    """Yield to maturity of a par bond is the coupon rate."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    yield_rate = yield_to_maturity(flows, price=100, frequency=2)
+    assert yield_rate == pytest.approx(0.04, abs=1e-8)
+
+
+def test_ytm_recovers_the_yield_used_to_price() -> None:
+    """Yield from price and price from yield are consistent."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    price = price_from_yield(flows, yield_rate=0.05, frequency=2)
+    yield_rate = yield_to_maturity(flows, price=price, frequency=2)
+    assert yield_rate == pytest.approx(0.05, abs=1e-8)
+
+
+def test_bond_yields_round_trip() -> None:
+    """Yield from price and price from yield are consistent."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    ytm = yield_to_maturity(flows, price=99.6, frequency=2)
+    price = price_from_yield(flows, yield_rate=ytm, frequency=2)
+    assert price == pytest.approx(99.6)
+
+
+def test_bond_yield_out_of_bounds() -> None:
+    """A price no yield between the bounds can produce is rejected."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    with pytest.raises(ValueError, match="Price is outside the range implied by the yield bounds"):
+        yield_to_maturity(flows, price=200, frequency=2, lower=0.0, upper=0.1)
+
+
+def test_bond_yield_price_0() -> None:
+    """Yield from price raises ValueError if price is non-positive."""
+    flows = bond_cash_flows(100, 0.04, 2, 4)
+    with pytest.raises(ValueError, match="Price must be positive"):
+        yield_to_maturity(flows, price=0, frequency=2)

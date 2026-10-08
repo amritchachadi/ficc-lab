@@ -76,3 +76,32 @@ def price_from_yield(
     if base <= 0:
         raise ValueError("Yield is too low: 1 + yield / frequency must be positive.")
     return sum(amount / math.pow(base, frequency * time) for time, amount in cash_flows)
+
+
+def yield_to_maturity(
+    cash_flows: list[tuple[float, float]],
+    price: float,
+    frequency: int,
+    lower: float = 0.0,
+    upper: float = 1.0,
+    tolerance: float = 1e-10,
+    max_iterations: int = 200,
+) -> float:
+    """Calculate the yield to maturity of a bond given price and cash flows using bisection."""
+    if price <= 0:
+        raise ValueError("Price must be positive.")
+    price_at_lower = price_from_yield(cash_flows, lower, frequency)
+    price_at_upper = price_from_yield(cash_flows, upper, frequency)
+    if not price_at_upper <= price <= price_at_lower:
+        raise ValueError("Price is outside the range implied by the yield bounds.")
+
+    for _ in range(max_iterations):
+        mid = (lower + upper) / 2
+        price_at_mid = price_from_yield(cash_flows, mid, frequency)
+        if price_at_mid > price:
+            lower = mid
+        else:
+            upper = mid
+        if (upper - lower) < tolerance:
+            return (lower + upper) / 2
+    raise ValueError("Yield to maturity not found within the specified bounds and iterations.")
